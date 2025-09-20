@@ -1,7 +1,5 @@
-import curses
 from board import Board
 from util import ButtonMapEnum
-from enum import Enum
 from ai import AI
 
 class Game:
@@ -18,18 +16,47 @@ class Game:
 
         self.ai = AI()
 
+        self.auto_play = False
+
     def draw_screen(self):
         self.stdscr.clear()
         self.stdscr.addstr(f"Score: {self.board.score}\n")
-        self.stdscr.addstr("Use W/A/S/D to move. Press 'q' to quit.\n")
+        self.stdscr.addstr("Use W/A/S/D to move.\n")
+        self.stdscr.addstr("Press 'q' to quit.\n")
+        self.stdscr.addstr("Press 'h' for AI hint.\n")
+        self.stdscr.addstr("Press 'g' for Autoplay.\n")
         self.stdscr.addstr(str(self.board) + "\n")
 
     def play(self):
         while not self.over:
             if self.clear_screen:
                 self.draw_screen()
+
+            if not self.board.can_move():
+                self.over = True
+                # self.stdscr.addstr(str(self.board) + "\n")
+                self.stdscr.addstr("No moves left! Game Over!\n")
+                self.stdscr.refresh()
+                break
+
+            if self.board.is_2048():
+                self.over = True
+                self.stdscr.addstr("You Win!\n")
+                self.stdscr.refresh()
+                break
             
-            move = self.stdscr.getch()
+            if self.auto_play:
+                best_move = self.ai.get_best_move(self.board)
+                if best_move is None:
+                    self.over = True
+                    self.stdscr.addstr("AI couldn't find a move! Silly robot.\n")
+                    self.stdscr.refresh()
+                key = ButtonMapEnum[best_move].value
+                self.stdscr.addstr(f"AI next move: {best_move}\n")
+                self.stdscr.refresh()
+                move = ord(key)
+            else:
+                move = self.stdscr.getch()
 
             if move == ord(ButtonMapEnum.QUIT.value):
                 break
@@ -40,6 +67,14 @@ class Game:
                 self.clear_screen = False
                 self.stdscr.refresh()
                 continue
+
+            if move == ord(ButtonMapEnum.AUTOPLAY.value):
+                self.auto_play = not self.auto_play
+                status = "enabled" if self.auto_play else "disabled"
+                self.stdscr.addstr(f"Autoplay {status}.\n")
+                self.stdscr.refresh()
+                continue
+
             if move == ord(ButtonMapEnum.UP.value):
                 self.board.shift_up()
                 self.clear_screen = True
@@ -62,10 +97,6 @@ class Game:
             if self.board.board_changed:
                 self.board.spawn_tile()
 
-            if not self.board.can_move():
-                self.over = True
-                self.stdscr.addstr("Game Over!\n")
-
-            if self.board.is_2048():
-                self.over = True
-                self.stdscr.addstr("You Win!\n")
+        self.stdscr.addstr("Press any key to exit...\n")
+        self.stdscr.refresh()
+        self.stdscr.getch()

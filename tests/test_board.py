@@ -210,6 +210,14 @@ def test_no_moves_left():
                      [4, 2, 4, 2]])
     assert not board.can_move()
 
+def test_moves_left():
+    board = Board(4)
+    board.set_grid([[2, 8, 2, 8],
+                     [4, 16, 8, 4],
+                     [2, 2, 32, 8],
+                     [4, 2, 8, 2]])
+    assert board.can_move()
+
 def test_moves_left_empty_space():
     board = Board(4)
     board.set_grid([[2, 4, 2, 4],

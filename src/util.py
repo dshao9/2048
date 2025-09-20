@@ -7,3 +7,4 @@ class ButtonMapEnum(Enum):
     RIGHT = "d"
     QUIT = "q"
     HINT = "h"
+    AUTOPLAY = "g"
