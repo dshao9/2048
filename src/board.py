@@ -24,6 +24,19 @@ class Board:
         self.grid = new_grid
 
     def shift_left(self):
+        self.grid = self.shift_grid_left()
+
+    def shift_right(self):
+        self.grid = self.shift_grid_right()
+
+    def shift_up(self):
+        self.grid = self.shift_grid_up()
+
+    def shift_down(self):
+        self.grid = self.shift_grid_down()
+
+    def shift_grid_left(self):
+        new_grid = [[0] * self.size for _ in range(self.size)]
         for y in range(self.size):
             new_row = [i for i in self.grid[y] if i != 0]
 
@@ -38,9 +51,12 @@ class Board:
             new_row += [0] * (self.size - len(new_row))
             if new_row != self.grid[y]:
                 self.board_changed = True
-            self.grid[y] = new_row
+            new_grid[y] = new_row
 
-    def shift_right(self):
+        return new_grid
+
+    def shift_grid_right(self):
+        new_grid = [[0] * self.size for _ in range(self.size)]
         for y in range(self.size):
             new_row = [i for i in self.grid[y] if i != 0]
             
@@ -56,9 +72,12 @@ class Board:
             new_row = [0] * (self.size - len(new_row)) + new_row
             if new_row != self.grid[y]:
                 self.board_changed = True
-            self.grid[y] = new_row
+            new_grid[y] = new_row
 
-    def shift_up(self):
+        return new_grid
+
+    def shift_grid_up(self):
+        new_grid = [[0] * self.size for _ in range(self.size)]
         for x in range(self.size):
             new_col = [self.grid[y][x] for y in range(self.size) if self.grid[y][x] != 0]
             
@@ -74,9 +93,12 @@ class Board:
             if new_col != [self.grid[y][x] for y in range(self.size)]:
                 self.board_changed = True
             for y in range(self.size):
-                self.grid[y][x] = new_col[y]
+                new_grid[y][x] = new_col[y]
 
-    def shift_down(self):
+        return new_grid
+
+    def shift_grid_down(self):
+        new_grid = [[0] * self.size for _ in range(self.size)]
         for x in range(self.size):
             new_col = [self.grid[y][x] for y in range(self.size) if self.grid[y][x] != 0]
             
@@ -92,7 +114,9 @@ class Board:
             if new_col != [self.grid[y][x] for y in range(self.size)]:
                 self.board_changed = True
             for y in range(self.size):
-                self.grid[y][x] = new_col[y]
+                new_grid[y][x] = new_col[y]
+
+        return new_grid
 
     def can_move(self):
         for y in range(self.size):
