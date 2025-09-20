@@ -34,6 +34,7 @@ class Game:
 
             if not self.board.can_move():
                 self.over = True
+                self.stdscr.nodelay(False)
                 # self.stdscr.addstr(str(self.board) + "\n")
                 self.stdscr.addstr("No moves left! Game Over!\n")
                 self.stdscr.refresh()
@@ -49,27 +50,34 @@ class Game:
                 best_move = self.ai.get_best_move(self.board)
                 if best_move is None:
                     self.over = True
+                    self.stdscr.nodelay(False)
                     self.stdscr.addstr("AI couldn't find a move! Silly robot.\n")
                     self.stdscr.refresh()
                 key = ButtonMapEnum[best_move].value
                 self.stdscr.addstr(f"AI next move: {best_move}\n")
                 self.stdscr.refresh()
+                
+                self.stdscr.nodelay(True)
                 move = ord(key)
+                input = self.stdscr.getch()
             else:
-                move = self.stdscr.getch()
+                input = self.stdscr.getch()
+                move = input
 
-            if move == ord(ButtonMapEnum.QUIT.value):
+            if input == ord(ButtonMapEnum.QUIT.value):
                 break
 
-            if move == ord(ButtonMapEnum.HINT.value):
+            if input == ord(ButtonMapEnum.HINT.value):
                 best_move = self.ai.get_best_move(self.board)
                 self.stdscr.addstr(f"AI suggests move: {best_move}\n")
                 self.clear_screen = False
                 self.stdscr.refresh()
                 continue
 
-            if move == ord(ButtonMapEnum.AUTOPLAY.value):
+            if input == ord(ButtonMapEnum.AUTOPLAY.value):
                 self.auto_play = not self.auto_play
+                if not self.auto_play:
+                    self.stdscr.nodelay(False)
                 status = "enabled" if self.auto_play else "disabled"
                 self.stdscr.addstr(f"Autoplay {status}.\n")
                 self.stdscr.refresh()
