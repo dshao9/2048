@@ -1,5 +1,3 @@
-
-
 from board import Board
 
 def test_shift_left_simple():

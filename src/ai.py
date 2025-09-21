@@ -1,5 +1,3 @@
-from board import ButtonMapEnum
-
 
 # Borrowed from Robert Xiao's excellent blog post on 2048 AI
 # http://robert-xiao.com/2014/04/14/2048-ai
@@ -26,10 +24,10 @@ class AI:
         self.max_depth = max_depth
 
         self.move_funcs = {
-            ButtonMapEnum.UP.value: self.shift_grid_up_int64,
-            ButtonMapEnum.DOWN.value: self.shift_grid_down_int64,
-            ButtonMapEnum.LEFT.value: self.shift_grid_left_int64,
-            ButtonMapEnum.RIGHT.value: self.shift_grid_right_int64
+            'UP': self.shift_grid_up_int64,
+            'DOWN': self.shift_grid_down_int64,
+            'LEFT': self.shift_grid_left_int64,
+            'RIGHT': self.shift_grid_right_int64
         }
 
         self.row_cache = {}
