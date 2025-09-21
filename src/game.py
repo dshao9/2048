@@ -1,6 +1,7 @@
 from board import Board
 from util import ButtonMapEnum
 from ai import AI
+import time
 
 class Game:
     def __init__(self, stdscr):
@@ -12,9 +13,10 @@ class Game:
         self.stdscr = stdscr
         self.stdscr.nodelay(False)
         self.stdscr.keypad(True)
+        self.stdscr.scrollok(True)
         self.clear_screen = True
 
-        self.ai = AI()
+        self.ai = AI(stdscr=stdscr)
 
         self.auto_play = False
 
@@ -68,6 +70,8 @@ class Game:
                 break
 
             if input == ord(ButtonMapEnum.HINT.value):
+                self.stdscr.addstr(f"Thinking...\n")
+                self.stdscr.refresh()
                 best_move = self.ai.get_best_move(self.board)
                 self.stdscr.addstr(f"AI suggests move: {best_move}\n")
                 self.clear_screen = False

@@ -2,9 +2,10 @@ from board import Board
 from util import ButtonMapEnum
 
 class AI:
-
-    def __init__(self, max_depth=3):
+    def __init__(self, stdscr, max_depth=3):
         self.max_depth = max_depth
+
+        self.stdscr = stdscr
 
         self.move_funcs = {
             'UP': self.shift_grid_up_int64,
@@ -12,6 +13,11 @@ class AI:
             'LEFT': self.shift_grid_left_int64,
             'RIGHT': self.shift_grid_right_int64
         }
+
+        self.row_cache = {}
+        self.board_cache = {}
+
+        self.init_rows()
 
     def get_best_move(self, board):
         grid_int = self.grid_to_int64(board.grid)
@@ -27,14 +33,16 @@ class AI:
                 if score > best_score:
                     best_score = score
                     best_move = move
-
         return best_move
     
     def evaluate_spawns(self, grid_int, depth):
-        if depth == self.max_depth:
+        if depth >= self.max_depth:
             return self.score_board(grid_int)
+        
+        if grid_int in self.board_cache:
+            return self.board_cache[grid_int]
 
-        scores = []
+        score = 0
         empty_tiles = []
         for i in range(16):
             if ((grid_int >> (4 * i)) & 0xF) == 0:
@@ -45,32 +53,28 @@ class AI:
 
         for tile in empty_tiles:
             new_grid_int_2 = grid_int | (1 << (4 * tile))
-            score_2 = self.evaluate_board(new_grid_int_2, depth + 1)
-            scores.append(score_2 * 0.9)
+            score_2 = self.evaluate_board(new_grid_int_2, depth)
+            score += score_2 * 0.9
 
             new_grid_int_4 = grid_int | (2 << (4 * tile))
-            score_4 = self.evaluate_board(new_grid_int_4, depth + 1)
-            scores.append(score_4 * 0.1)
+            score_4 = self.evaluate_board(new_grid_int_4, depth)
+            score += score_4 * 0.1
 
-        return sum(scores) / len(empty_tiles)
+        res = score / len(empty_tiles)
+        self.board_cache[grid_int] = res
+        return res
 
     def evaluate_board(self, grid_int, depth):
-        if depth == self.max_depth:
-            return self.score_board(grid_int)
-
         max_score = 0
         for move_func in self.move_funcs.values():
             new_grid_int = move_func(grid_int)
             if new_grid_int != grid_int:
-                score = self.evaluate_spawns(new_grid_int, depth)
+                score = self.evaluate_spawns(new_grid_int, depth + 1)
                 max_score = max(max_score, score)
-
         return max_score
 
     # simulate tables after shifting left, right, up and down
     # give each new board a hueristic score (NOT GAME SCORE) by scoring each row/column
-    # sum the results of all 4 rows
-    # sum the results of all 4 columns
     # sum the results of rows and columns to get the final score
 
     def grid_to_int64(self, grid):
@@ -154,7 +158,7 @@ class AI:
         for y in range(4):
             for x in range(4):
                 value = (grid_int64 >> (4 * (y * 4 + x))) & 0xF
-                transposed |= (value & 0xF) << (4 * (x * 4 + y))
+                transposed |= value << (4 * (x * 4 + y))
         return transposed
 
     # generate a score for the entire board by scoring each row and column
@@ -170,6 +174,8 @@ class AI:
         return total_board_score
 
     def get_row_score(self, row_int):
+        if row_int in self.row_cache:
+            return self.row_cache[row_int]
         # score a row based on sum of squares, higher values = higher score
         sum_score = 0
 
@@ -209,4 +215,9 @@ class AI:
         if merge_counter > 0:
             merge_potential += 1 + merge_counter
 
-        return [sum_score, empty_count, merge_potential, -min(mono_left, mono_right)]
+        self.row_cache[row_int] = [sum_score, empty_count, merge_potential, -min(pow(mono_left, 4), pow(mono_right, 4))]
+        return self.row_cache[row_int]
+    
+    def init_rows(self):
+        for i in range(0x10000):
+            self.get_row_score(i)
