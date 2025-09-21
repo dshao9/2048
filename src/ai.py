@@ -1,25 +1,45 @@
-from board import Board
-from util import ButtonMapEnum
+from board import ButtonMapEnum
+
+
+# Borrowed from Robert Xiao's excellent blog post on 2048 AI
+# http://robert-xiao.com/2014/04/14/2048-ai
+# https://github.com/nneonneo/2048-ai
+BASE_SCORE = 200000
+MONO_WEIGHT = 47
+EMPTY_WEIGHT = 270
+MERGE_WEIGHT = 700
+MONO_SCALE = 4
+SUM_SCALE = 3.5
+SUM_WEIGHT = 11
+
 
 class AI:
-    def __init__(self, stdscr, max_depth=3):
+    """ General AI strategy here is to simulate tables after shifting in every direction,
+        give each new board a hueristic score (not game score) by scoring each row/column,
+        sum the results of rows and columns to get the direction that yields the best
+        total score (expectimax).
+
+        Then generate all possible spawns of 2 and 4 on the new board and evaluate those boards
+        recursively up to a certain depth
+    """
+    def __init__(self, max_depth=3):
         self.max_depth = max_depth
 
-        self.stdscr = stdscr
-
         self.move_funcs = {
-            'UP': self.shift_grid_up_int64,
-            'DOWN': self.shift_grid_down_int64,
-            'LEFT': self.shift_grid_left_int64,
-            'RIGHT': self.shift_grid_right_int64
+            ButtonMapEnum.UP.value: self.shift_grid_up_int64,
+            ButtonMapEnum.DOWN.value: self.shift_grid_down_int64,
+            ButtonMapEnum.LEFT.value: self.shift_grid_left_int64,
+            ButtonMapEnum.RIGHT.value: self.shift_grid_right_int64
         }
 
         self.row_cache = {}
         self.board_cache = {}
 
+        # precompute row scores since there are only 65536 possible rows
         self.init_rows()
 
     def get_best_move(self, board):
+        """ Use expectimax to find the best move returns the corresponding ButtonMapEnum value """
         grid_int = self.grid_to_int64(board.grid)
         curr_depth = 0
 
@@ -36,9 +56,13 @@ class AI:
         return best_move
     
     def evaluate_spawns(self, grid_int, depth):
+        """ Evaluate all possible spawns of 2 and 4 on the current board 
+            since we know the spawn probabilities. 
+        """
         if depth >= self.max_depth:
             return self.score_board(grid_int)
         
+        # retrieve board from cache if available
         if grid_int in self.board_cache:
             return self.board_cache[grid_int]
 
@@ -61,10 +85,13 @@ class AI:
             score += score_4 * 0.1
 
         res = score / len(empty_tiles)
+
+        # cache board results
         self.board_cache[grid_int] = res
         return res
 
     def evaluate_board(self, grid_int, depth):
+        """ Evaluate all moves on the current board """
         max_score = 0
         for move_func in self.move_funcs.values():
             new_grid_int = move_func(grid_int)
@@ -73,19 +100,12 @@ class AI:
                 max_score = max(max_score, score)
         return max_score
 
-    # simulate tables after shifting left, right, up and down
-    # give each new board a hueristic score (NOT GAME SCORE) by scoring each row/column
-    # sum the results of rows and columns to get the final score
-
     def grid_to_int64(self, grid):
         result = 0
         for y in range(len(grid)):
             for x in range(len(grid[y])):
                 value = grid[y][x]
-                if value == 0:
-                    power = 0
-                else:
-                    power = value.bit_length() - 1
+                power = 0 if value == 0 else value.bit_length() - 1
                 result |= (power & 0xF) << (4 * (y * len(grid) + x))
         return result
     
@@ -95,10 +115,7 @@ class AI:
             row = []
             for x in range(4):
                 power = (int64 >> (4 * (y * 4 + x))) & 0xF
-                if power == 0:
-                    value = 0
-                else:
-                    value = 1 << power
+                value = 0 if power == 0 else 1 << power
                 row.append(value)
             grid.append(row)
         return grid
@@ -129,12 +146,13 @@ class AI:
         shifted = self.shift_grid_left_int64(transposed)
         return self.transpose_int64(shifted)
     
-    # shifting down = transpose, reverse each row, shift left, reverse again, transpose again
+    # shifting down = transpose, shift right, transpose again
     def shift_grid_down_int64(self, grid_int64):
         transposed = self.transpose_int64(grid_int64)
         shifted = self.shift_grid_right_int64(transposed)
         return self.transpose_int64(shifted)
 
+    # shift a single row represented as a 16-bit integer to the left
     def shift_row_int16_left(self, row):
         # row is a 16-bit integer representing 4 tiles (4 bits each)
         tiles = [(row >> (4 * i)) & 0xF for i in range(4)]
@@ -174,8 +192,10 @@ class AI:
         return total_board_score
 
     def get_row_score(self, row_int):
+        # retrieve from cache if available
         if row_int in self.row_cache:
             return self.row_cache[row_int]
+        
         # score a row based on sum of squares, higher values = higher score
         sum_score = 0
 
@@ -194,7 +214,7 @@ class AI:
         for i in range(4):
             this_tile = (row_int >> (4 * i)) & 0xF
 
-            sum_score += this_tile ** 2
+            sum_score += pow(this_tile, SUM_SCALE)
             if this_tile == 0:
                 empty_count += 1
             else:
@@ -206,16 +226,22 @@ class AI:
 
             if i > 0:
                 if previous_tile > this_tile:
-                    mono_left += previous_tile - this_tile
+                    mono_left += pow(previous_tile, MONO_SCALE) - pow(this_tile, MONO_SCALE)
                 else:
-                    mono_right += this_tile - previous_tile
+                    mono_right += pow(this_tile, MONO_SCALE) - pow(previous_tile, MONO_SCALE)
 
             previous_tile = this_tile
 
         if merge_counter > 0:
             merge_potential += 1 + merge_counter
 
-        self.row_cache[row_int] = [sum_score, empty_count, merge_potential, -min(pow(mono_left, 4), pow(mono_right, 4))]
+        self.row_cache[row_int] = [
+            BASE_SCORE, 
+            -sum_score * SUM_WEIGHT, 
+            empty_count * EMPTY_WEIGHT, 
+            merge_potential * MERGE_WEIGHT, 
+            -min(mono_left, mono_right) * MONO_WEIGHT
+        ]
         return self.row_cache[row_int]
     
     def init_rows(self):
