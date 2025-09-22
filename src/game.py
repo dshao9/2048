@@ -50,12 +50,7 @@ class Game:
                 break
             
             if self.auto_play:
-                best_move = self.ai.get_best_move(self.board)
-                if best_move is None:
-                    self.over = True
-                    self.stdscr.nodelay(False)
-                    self.stdscr_print("AI couldn't find a move! Silly robot.\n")
-                    break
+                best_move = self.handle_best_move()
                 key = ButtonMapEnum[best_move].value
                 self.stdscr_print(f"AI next move: {best_move}\n")
 
@@ -73,7 +68,7 @@ class Game:
 
             if input == ord(ButtonMapEnum.HINT.value):
                 self.stdscr_print(f"Thinking...\n")
-                best_move = self.ai.get_best_move(self.board)
+                best_move = self.handle_best_move()
                 self.stdscr_print(f"AI suggests move: {best_move}\n")
                 self.clear_screen = False
                 continue
@@ -110,6 +105,14 @@ class Game:
         self.stdscr.nodelay(False)
         self.stdscr_print("Press any key to exit...\n")
         self.stdscr.getch()
+
+    def handle_best_move(self):
+        best_move = self.ai.get_best_move(self.board.grid) if self.board.size == 4 else None
+        if best_move is None:
+            self.over = True
+            self.stdscr_print("AI couldn't find a move! Silly robot.\n")
+            return
+        return best_move
 
     def draw_screen(self):
         self.stdscr.clear()

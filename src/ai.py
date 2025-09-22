@@ -36,9 +36,9 @@ class AI:
         # precompute row scores since there are only 65536 possible rows
         self.init_rows()
 
-    def get_best_move(self, board):
+    def get_best_move(self, grid):
         """ Use expectimax to find the best move returns the corresponding ButtonMapEnum value """
-        grid_int = self.grid_to_int64(board.grid)
+        grid_int = self.grid_to_int64(grid)
         curr_depth = 0
 
         best_score = -1
